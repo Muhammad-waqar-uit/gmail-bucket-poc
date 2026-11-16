@@ -3,10 +3,24 @@
 How the POC is put together, module by module, and how each backend maps the same base/bucket/folder
 model onto Google Drive, Gmail and plain memory.
 
+> **Where the code lives.** The storage core — layout rules, `ObjectStore`, `DriveStore`, `GmailBucket`,
+> `MemoryStore`, backend selection, the REST server and OAuth — is the
+> [gmail-bucket](https://github.com/Muhammad-waqar-uit/gmail-bucket) v2 package, pinned here at the
+> `v2.0.0` tag. Paths marked `pkg:` refer to that package (`node_modules/gmail-bucket/…`); everything
+> else lives in this repo. `src/main.ts` is the only backend-specific code left here: it loads `.env`,
+> calls `createStore()` and hands the result to `serve()` with `staticDir` pointing at `web/dist`.
+
+```ts
+// src/main.ts — the whole app-side wiring
+import { createStore, serve } from 'gmail-bucket';
+const info = await createStore();
+serve(info, { port: 4570, host: '127.0.0.1', staticDir: '../web/dist' });
+```
+
 ## The one interface
 
-Everything is expressed through `ObjectStore` (`src/store.ts`). The HTTP layer never knows which backend
-is in use:
+Everything is expressed through `ObjectStore` (`pkg: src/store.ts`). The HTTP layer never knows which
+backend is in use:
 
 ```ts
 interface ObjectStore {
@@ -51,7 +65,7 @@ flowchart TD
 `auto` is deliberately forgiving: it reports *why* it fell back (shown in the UI header) instead of dying.
 `STORAGE=drive|gmail` is strict and exits with a readable message if that backend is unusable.
 
-## Layout rules (`src/layout.ts`)
+## Layout rules (`pkg: src/layout.ts`)
 
 ```ts
 BASE_BUCKET = '_root';
@@ -62,7 +76,7 @@ assertBucketName(name) // rejects _root and invalid names
 The base is addressable as `_root` so objects can live outside any bucket. It is never returned by
 `listBuckets()` and both create/delete reject it.
 
-## Drive backend (`src/drive.ts`)
+## Drive backend (`pkg: src/drive.ts`)
 
 **Mapping**
 
@@ -90,7 +104,7 @@ The base is addressable as `_root` so objects can live outside any bucket. It is
 - `list` is a paginated helper; every query uses `trashed=false`.
 - `DriveStoreOptions.client` is a test seam: `scripts/drive-mock-test.mjs` injects a fake Drive client.
 
-## Gmail backend (`src/bucket.ts`)
+## Gmail backend (`pkg: src/bucket.ts`)
 
 **Mapping**
 
@@ -115,12 +129,14 @@ The base is addressable as `_root` so objects can live outside any bucket. It is
 - Listing reads `format: 'metadata'` headers for every message (that is why big buckets are slow).
 - `retry()` handles 429, "rate/quota" 403s and 5xx with exponential backoff; all list/get calls go through it.
 
-## Memory backend (`src/store.ts`)
+## Memory backend (`pkg: src/store.ts`)
 
 `MemoryStore` is a `Map<bucket, Map<key, { body, info }>>` seeded with `_root`. Same rules, same errors,
 zero credentials — this is what the Playwright suite and local demos run against.
 
-## HTTP layer (`src/server.ts`)
+## HTTP layer (`pkg: src/server.ts`)
+
+The router ships with the library (`serve(info, { staticDir })`); the app only supplies `staticDir`.
 
 - `createServer(info)` builds the router; `serve(info)` binds `PORT`/`HOST`.
 - Routing is a small hand-written matcher:
@@ -190,8 +206,12 @@ sequenceDiagram
 
 | Goal | Touch |
 | --- | --- |
-| New backend (S3, R2, local disk) | implement `ObjectStore`, add a branch in `createStore()` |
-| Different layout (no buckets) | `layout.ts` + `listBuckets` semantics |
-| Auth on the HTTP API | `src/server.ts` (add a token check before routing) |
-| Streaming uploads | replace `readBody` + `putObject(Buffer)` with a stream-aware variant |
+| New backend (S3, R2, local disk) | implement `ObjectStore` in the library, add a branch in its `createStore()` |
+| Different layout (no buckets) | library `layout.ts` + `listBuckets` semantics |
+| Auth on the HTTP API | library `serve(info, { token })` or the `GMAIL_BUCKET_TOKEN` env var |
+| Streaming uploads | replace the library's `readBody` + `putObject(Buffer)` with a stream-aware variant |
 | Public/presigned URLs | needs a signing layer; Drive `webViewLink` or Gmail attachment ids are not stable enough |
+| UI changes (base entry, uploader, filtering) | this repo — `web/src` |
+
+When you change the storage core, land it in the library first, tag a release, then bump the pinned tag
+here; `npm run test:drive` fails if the installed version drifts from what the app expects.

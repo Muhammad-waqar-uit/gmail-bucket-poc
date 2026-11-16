@@ -123,20 +123,25 @@ Full request/response reference: **[docs/API.md](docs/API.md)**.
 This is a plain REST API, not the S3 wire protocol, so the AWS SDK cannot talk to it — keep a thin
 `upload()`/`download()` wrapper and swap in a real S3 client later.
 
+## Backend library
+
+All storage logic lives in **[gmail-bucket](https://github.com/Muhammad-waqar-uit/gmail-bucket) v2** —
+the base/bucket/folder model, the Drive and Gmail backends, the `ObjectStore` interface, the memory
+fallback and the REST server. This repo adds the app around it.
+
+- Pin: `"gmail-bucket": "github:Muhammad-waqar-uit/gmail-bucket#v2.0.0"` (installing from the tag runs the
+  library's `prepare` script, so `dist/` is built for you).
+- Once `gmail-bucket@2.0.0` is on npm, switch it to `"^2.0.0"` — everything else stays the same.
+- `npm run auth` and the backend choice are the library's; `src/main.ts` only wires env → store → server.
+
 ## Project structure
 
 ```
 .
-├── src/                       Node API (TypeScript, no framework)
-│   ├── main.ts                Entry point: load env → pick backend → serve
+├── src/                       App shell (thin — the storage core is the library)
+│   ├── main.ts                load env → createStore() → serve(info, { staticDir })
 │   ├── env.ts                 Tiny .env loader (empty values treated as unset)
-│   ├── layout.ts              BASE_BUCKET, bucket-name rules shared by all backends
-│   ├── store.ts               ObjectStore interface, MemoryStore, backend selection
-│   ├── drive.ts               DriveStore: base folder, buckets-as-folders, nested folders
-│   ├── bucket.ts              GmailBucket: labels, MIME messages, chunking, MD5 etags
-│   ├── auth.ts                OAuth desktop flow, or env client id/secret + refresh token
-│   ├── auth-cli.ts            `npm run auth`
-│   └── server.ts              REST routes + static hosting of web/dist + SPA fallback
+│   └── auth-cli.ts            `npm run auth` — OAuth for both backends (drive + gmail scopes)
 ├── web/                       React app (Vite)
 │   ├── index.html             App shell
 │   ├── vite.config.ts         Root, Tailwind plugin, /api dev proxy
@@ -152,7 +157,7 @@ This is a plain REST API, not the S3 wire protocol, so the AWS SDK cannot talk t
 │           ├── Uploader.tsx      Drag-and-drop, destination folder, progress queue
 │           └── ObjectTable.tsx   Thumbnails, download, delete
 ├── e2e/                       Playwright: api.spec.ts + app.spec.ts
-├── scripts/drive-mock-test.mjs  DriveStore against a fake Drive client
+├── scripts/drive-mock-test.mjs  DriveStore (from the installed package) vs a fake Drive client
 ├── docs/                      Architecture + API reference
 └── playwright.config.ts       Starts the server on :4571 in memory mode
 ```
@@ -168,10 +173,14 @@ npm run test:e2e       # builds, starts a memory-mode server, runs Playwright
 npm test               # all of the above
 ```
 
-- **`scripts/drive-mock-test.mjs`** exercises the real `DriveStore` against a fake Drive API: base folder
-  creation, buckets as folders, nested folder creation, `_root` uploads, MD5 round-trip, metadata,
-  prefix listing, in-place overwrite, delete with empty-folder pruning, `BucketNotEmpty`, `BucketExists`,
-  `NoSuchKey`/`NoSuchBucket`, and the base protections.
+- **`scripts/drive-mock-test.mjs`** exercises the `DriveStore` that ships in the installed `gmail-bucket`
+  package against a fake Drive API: base folder creation, buckets as folders, nested folder creation,
+  `_root` uploads, MD5 round-trip, metadata, prefix listing, in-place overwrite, delete with empty-folder
+  pruning, `BucketNotEmpty`, `BucketExists`, `NoSuchKey`/`NoSuchBucket`, and the base protections. It is
+  also a check that the pinned library version behaves as this app expects.
+- The library's own suite (`npm run test:drive` inside
+  [gmail-bucket](https://github.com/Muhammad-waqar-uit/gmail-bucket)) runs the same 25 checks against the
+  source tree.
 - **`e2e/api.spec.ts`** asserts the REST contract: status payload, full object lifecycle, base uploads,
   status codes (400/404/409), and SPA fallback.
 - **`e2e/app.spec.ts`** drives the real UI: create a bucket, upload into it, upload into a nested folder,

@@ -4,8 +4,15 @@
  *
  *   npm run build && node scripts/drive-mock-test.mjs
  */
+/**
+ * Verifies the DriveStore that ships in the installed `gmail-bucket` package
+ * against an in-memory fake Drive client, so the dependency this POC ships with
+ * is exercised end to end without Google credentials.
+ *
+ *   npm run test:drive
+ */
 import assert from 'node:assert/strict';
-import { DriveStore } from '../dist/drive.js';
+import { DriveStore } from 'gmail-bucket';
 
 const FOLDER = 'application/vnd.google-apps.folder';
 

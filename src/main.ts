@@ -1,20 +1,23 @@
 import { loadEnv } from './env.js';
 loadEnv();
 
-import type { StoreInfo } from './store.js';
+import { fileURLToPath } from 'node:url';
+import { createStore, serve } from 'gmail-bucket';
 
-let info: StoreInfo;
+// The built React app sits next to dist/ and is served by the API process.
+const staticDir = fileURLToPath(new URL('../web/dist', import.meta.url));
+const port = Number(process.env.PORT) || 4570;
+const host = process.env.HOST || '127.0.0.1';
+
+let info;
 try {
-  const { createStore } = await import('./store.js');
   info = await createStore();
 } catch (e: any) {
   console.error(`\nCannot start: ${e?.message ?? e}\n\nCheck .env (see .env.example).\n`);
   process.exit(1);
 }
 
-const { serve } = await import('./server.js');
-
-const server = serve(info);
+const server = serve(info, { port, host, staticDir });
 
 process.on('SIGINT', () => server.close(() => process.exit(0)));
 process.on('SIGTERM', () => server.close(() => process.exit(0)));
