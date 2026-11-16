@@ -1,0 +1,12 @@
+node_modules
+dist
+web/dist
+.env
+*.log
+*.pid
+credentials.json
+token.json
+test-results
+playwright-report
+blob-report
+.freebuff

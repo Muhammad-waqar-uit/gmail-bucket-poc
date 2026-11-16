@@ -1,0 +1,45 @@
+{
+  "name": "gmail-bucket-poc",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Proof of concept: use Google Drive or Gmail as an S3-style object store, with a React UI.",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c blue,magenta \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "npm run build:api && node dist/main.js",
+    "dev:web": "vite --config web/vite.config.ts",
+    "build": "npm run build:api && npm run build:web",
+    "build:api": "tsc",
+    "build:web": "vite build --config web/vite.config.ts",
+    "start": "node dist/main.js",
+    "typecheck": "tsc -p tsconfig.json && tsc -p web/tsconfig.json && tsc -p e2e/tsconfig.json",
+    "auth": "node dist/auth-cli.js",
+    "test": "npm run typecheck && npm run test:drive && npm run test:e2e",
+    "test:drive": "npm run build:api && node scripts/drive-mock-test.mjs",
+    "test:e2e": "npm run build && playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:report": "playwright show-report"
+  },
+    "engines": { "node": ">=18" },
+  "license": "MIT",
+  "dependencies": {
+    "@tanstack/react-query": "^5.62.0",
+    "googleapis": "^144.0.0",
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "sonner": "^1.7.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/node": "^20.14.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.5.0",
+    "vite": "^6.0.0"
+  }
+}
