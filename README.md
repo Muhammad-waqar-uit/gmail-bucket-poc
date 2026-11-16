@@ -167,15 +167,38 @@ Full request/response reference: **[docs/API.md](docs/API.md)**.
 This is a plain REST API, not the S3 wire protocol, so the AWS SDK cannot talk to it — keep a thin
 `upload()`/`download()` wrapper and swap in a real S3 client later.
 
+## Using it from a Next.js app
+
+**[examples/nextjs](examples/nextjs/README.md)** is a copy-paste integration: a server-side wrapper plus one
+App Router route, both provider-agnostic.
+
+```
+examples/nextjs/lib/object-store.ts          the only file that imports gmail-bucket
+                                             (ObjectStorePort + gmailBucketStore adapter + factory)
+examples/nextjs/app/api/files/[...key]/      PUT / GET / HEAD / DELETE, no provider code
+```
+
+Call sites only ever see the port, so the backend is swappable in one file:
+
+```ts
+const store = await getObjectStore();
+const { body } = await store.get('next-app', 'reports/q4.pdf');   // now: Drive/Gmail/memory
+                                                                  // later: S3 — same call
+```
+
+`STORAGE=memory` for local dev without Google, `STORAGE=gmail` for the real thing, and `STORAGE_DRIVER=s3`
+plus a `s3Store()` implementation (the port maps 1:1 to S3 commands) when you move to real object storage.
+The example type-checks in CI (`tsc -p examples/tsconfig.json`).
+
 ## Backend library
 
 All storage logic lives in **[gmail-bucket](https://github.com/Muhammad-waqar-uit/gmail-bucket) v2** —
 the base/bucket/folder model, the Drive and Gmail backends, the `ObjectStore` interface, the memory
 fallback and the REST server. This repo adds the app around it.
 
-- Pin: `"gmail-bucket": "github:Muhammad-waqar-uit/gmail-bucket#v2.0.0"` (installing from the tag runs the
+- Pin: `"gmail-bucket": "github:Muhammad-waqar-uit/gmail-bucket#v2.2.0"` (installing from the tag runs the
   library's `prepare` script, so `dist/` is built for you).
-- Once `gmail-bucket@2.0.0` is on npm, switch it to `"^2.0.0"` — everything else stays the same.
+- Once `gmail-bucket@2.2.0` is on npm, switch it to `"^2.2.0"` — everything else stays the same.
 - `npm run auth` and the backend choice are the library's; `src/main.ts` only wires env → store → server.
 
 ## Project structure
@@ -201,7 +224,9 @@ fallback and the REST server. This repo adds the app around it.
 │           ├── Uploader.tsx      Drag-and-drop, destination folder, progress queue
 │           └── ObjectTable.tsx   Thumbnails, download, delete
 ├── e2e/                       Playwright: api.spec.ts + app.spec.ts
+├── examples/nextjs/           Copy-paste Next.js integration (port + wrapper + App Router route)
 ├── scripts/drive-mock-test.mjs  DriveStore (from the installed package) vs a fake Drive client
+├── scripts/smoke.mjs          `npm run smoke` — real upload/download/checksum against the active backend
 ├── docs/                      Architecture + API reference
 └── playwright.config.ts       Starts the server on :4571 in memory mode
 ```
