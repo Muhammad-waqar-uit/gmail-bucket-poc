@@ -145,7 +145,7 @@ The router ships with the library (`serve(info, { staticDir })`); the app only s
 /api/status                          backend + base + limits
 /api/buckets                         list / create-does-not-apply
 /api/buckets/:bucket                 list | create | delete
-/api/buckets/:bucket/objects/:key    upload | download | HEAD | delete
+/api/buckets/:bucket/objects/:key    upload | download | PATCH (move/rename) | HEAD | delete
 ```
 
 - Keys keep their slashes: everything after `/objects/` is `decodeURIComponent`-ed per segment and re-joined.

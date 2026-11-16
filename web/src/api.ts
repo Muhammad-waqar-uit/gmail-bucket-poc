@@ -74,6 +74,14 @@ export const api = {
   deleteObject: (bucket: string, key: string) =>
     request<{ ok: true }>(objectPath(bucket, key), { method: 'DELETE' }),
 
+  /** Move or rename an object; omit a key/bucket to keep it. */
+  moveObject: (fromBucket: string, fromKey: string, toBucket: string, toKey: string) =>
+    request<ObjectInfo>(objectPath(fromBucket, fromKey), {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ bucket: toBucket, key: toKey }),
+    }),
+
   /** Upload with real progress events (fetch has no upload progress). */
   upload: (bucket: string, key: string, file: File, onProgress?: (ratio: number) => void) =>
     new Promise<PutResult>((resolve, reject) => {

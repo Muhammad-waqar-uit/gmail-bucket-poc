@@ -168,3 +168,35 @@ test('links the base folder and each object to Drive when the backend provides u
   await expect(page.getByRole('link', { name: /base: Drive folder/ })).toHaveAttribute('href', folderUrl);
   await expect(page.getByRole('link', { name: 'Open in Drive' })).toHaveAttribute('href', fileUrl);
 });
+
+test('moves an object between buckets and renames it in place', async ({ page }) => {
+  const source = unique('ui-move');
+  const target = unique('ui-target');
+
+  await createBucket(page, source);
+  await createBucket(page, target);
+  await page.getByRole('button', { name: source, exact: true }).click();
+
+  await uploadFile(page, 'notes.txt', 'notes');
+  await expect(page.getByRole('link', { name: 'notes.txt' })).toBeVisible();
+
+  // move into the other bucket
+  await page.getByRole('button', { name: 'Move or rename' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Move or rename object' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel('Destination bucket').selectOption(target);
+  await dialog.getByRole('button', { name: 'Move' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole('link', { name: 'notes.txt' })).toHaveCount(0);
+
+  await page.getByRole('button', { name: target, exact: true }).click();
+  await expect(page.getByRole('link', { name: 'notes.txt' })).toBeVisible();
+  expect(await (await page.request.get(`/api/buckets/${target}/objects/notes.txt`)).text()).toBe('notes');
+
+  // rename in place
+  await page.getByRole('button', { name: 'Move or rename' }).click();
+  await page.getByRole('dialog', { name: 'Move or rename object' }).getByLabel('Key / path').fill('archive/notes-final.txt');
+  await page.getByRole('dialog', { name: 'Move or rename object' }).getByRole('button', { name: 'Move' }).click();
+  await expect(page.getByRole('link', { name: 'archive/notes-final.txt' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'notes.txt' })).toHaveCount(0);
+});

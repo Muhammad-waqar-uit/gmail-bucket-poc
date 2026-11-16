@@ -4,13 +4,6 @@
  *
  *   npm run build && node scripts/drive-mock-test.mjs
  */
-/**
- * Verifies the DriveStore that ships in the installed `gmail-bucket` package
- * against an in-memory fake Drive client, so the dependency this POC ships with
- * is exercised end to end without Google credentials.
- *
- *   npm run test:drive
- */
 import assert from 'node:assert/strict';
 import { DriveStore } from 'gmail-bucket';
 
@@ -80,9 +73,13 @@ function fakeDrive() {
       }
       return { data: { id } };
     },
-    async update({ fileId, requestBody, media }) {
+    async update({ fileId, requestBody, media, addParents, removeParents }) {
       const f = files.get(fileId);
       assert.ok(f, `no file ${fileId}`);
+      if (addParents) {
+        const removes = String(removeParents ?? '').split(',').filter(Boolean);
+        f.parents = [...new Set([...(f.parents ?? []).filter((p) => !removes.includes(p)), addParents])];
+      }
       if (requestBody?.appProperties) f.appProperties = requestBody.appProperties;
       if (requestBody?.trashed) f.trashed = true;
       if (requestBody?.name) f.name = requestBody.name;
@@ -174,5 +171,53 @@ await store.deleteBucket('docs', { force: true });
 check('force delete removes bucket', (await store.listBuckets()).join(',') === 'photos');
 await store.deleteBucket('photos');
 check('empty bucket deleted', (await store.listBuckets()).length === 0);
+
+// ---- move / rename ----
+await store.createBucket('photos');
+await store.createBucket('archive');
+
+await store.putObject('photos', 'a/one.txt', Buffer.from('one'));
+await store.moveObject({ bucket: 'photos', key: 'a/one.txt' }, { bucket: 'photos', key: 'b/two.txt' });
+check('rename moves the object', (await store.listObjects('photos')).some((o) => o.key === 'b/two.txt'));
+check('source key is gone after the move', !(await store.listObjects('photos')).some((o) => o.key === 'a/one.txt'));
+check('content survives the move', (await store.getObject('photos', 'b/two.txt')).body.toString() === 'one');
+check(
+  'empty source folders are pruned',
+  [...files.values()].filter((f) => f.name === 'a' && !f.trashed).length === 0
+);
+
+await store.moveObject({ bucket: 'photos', key: 'b/two.txt' }, { bucket: 'archive', key: 'two.txt' });
+check('moves between buckets', (await store.listObjects('archive'))[0]?.key === 'two.txt');
+check('moved object keeps its bytes', (await store.getObject('archive', 'two.txt')).body.toString() === 'one');
+
+await store.putObject('_root', 'loose.txt', Buffer.from('loose'));
+await store.moveObject({ bucket: '_root', key: 'loose.txt' }, { bucket: 'archive', key: 'in/loose.txt' });
+check(
+  'moves from the base into a bucket',
+  (await store.listObjects('archive')).some((o) => o.key === 'in/loose.txt')
+);
+check('base no longer lists the moved object', !(await store.listObjects('_root')).some((o) => o.key === 'loose.txt'));
+
+await store.putObject('archive', 'two.txt', Buffer.from('old target'));
+await store.moveObject({ bucket: 'archive', key: 'in/loose.txt' }, { bucket: 'archive', key: 'two.txt' });
+check('move overwrites the destination', (await store.getObject('archive', 'two.txt')).body.toString() === 'loose');
+
+await assert.rejects(
+  () => store.moveObject({ bucket: 'archive', key: 'two.txt' }, { bucket: 'archive', key: 'two.txt' }),
+  /same/
+);
+await assert.rejects(
+  () => store.moveObject({ bucket: 'archive', key: 'two.txt' }, { bucket: 'nope', key: 'x' }),
+  /NoSuchBucket/
+);
+await assert.rejects(
+  () => store.moveObject({ bucket: 'archive', key: 'missing' }, { bucket: 'archive', key: 'x' }),
+  /NoSuchKey/
+);
+check('move rejects bad targets', true);
+
+await store.deleteBucket('photos', { force: true });
+await store.deleteBucket('archive', { force: true });
+check('move leaves a clean slate', (await store.listBuckets()).length === 0);
 
 console.log(`\n${pass} checks passed against the mock Drive client.`);

@@ -127,4 +127,62 @@ test.describe('REST API', () => {
     expect(deep.status()).toBe(200);
     expect(await deep.text()).toContain('<div id="root">');
   });
+
+  test('moves and renames objects across buckets', async ({ request }) => {
+    const from = bucketName('move-from');
+    const to = bucketName('move-to');
+    await request.put(`/api/buckets/${from}`);
+    await request.put(`/api/buckets/${to}`);
+    await request.put(`/api/buckets/${from}/objects/docs/report.txt`, {
+      headers: { 'content-type': 'text/plain' },
+      data: 'report',
+    });
+
+    // move into another bucket, under a new path
+    const moved = await request.patch(`/api/buckets/${from}/objects/docs/report.txt`, {
+      data: { bucket: to, key: 'inbox/2026/report.txt' },
+    });
+    expect(moved.status()).toBe(200);
+    expect(await moved.json()).toMatchObject({ key: 'inbox/2026/report.txt', size: 6 });
+
+    expect((await request.get(`/api/buckets/${from}/objects/docs/report.txt`)).status()).toBe(404);
+    expect(await (await request.get(`/api/buckets/${to}/objects/inbox/2026/report.txt`)).text()).toBe('report');
+    expect((await (await request.get(`/api/buckets/${to}`)).json()).objects).toHaveLength(1);
+
+    // rename in place (only the key is sent)
+    expect(
+      (
+        await request.patch(`/api/buckets/${to}/objects/inbox/2026/report.txt`, {
+          data: { key: 'inbox/2026/final.txt' },
+        })
+      ).status()
+    ).toBe(200);
+    const list = await (await request.get(`/api/buckets/${to}`)).json();
+    expect(list.objects.map((o: { key: string }) => o.key)).toEqual(['inbox/2026/final.txt']);
+
+    // move from a bucket into the base
+    expect(
+      (
+        await request.patch(`/api/buckets/${to}/objects/inbox/2026/final.txt`, {
+          data: { bucket: '_root', key: 'final.txt' },
+        })
+      ).status()
+    ).toBe(200);
+    const base = await (await request.get('/api/buckets/_root')).json();
+    expect(base.objects.map((o: { key: string }) => o.key)).toContain('final.txt');
+    expect((await (await request.get(`/api/buckets/${to}`)).json()).objects).toHaveLength(0);
+
+    // errors
+    expect((await request.patch('/api/buckets/_root/objects/final.txt', { data: {} })).status()).toBe(400);
+    expect(
+      (await request.patch('/api/buckets/_root/objects/final.txt', { data: { bucket: 'nope', key: 'x' } })).status()
+    ).toBe(404);
+    expect(
+      (await request.patch('/api/buckets/_root/objects/missing.txt', { data: { key: 'y' } })).status()
+    ).toBe(404);
+
+    await request.delete('/api/buckets/_root/objects/final.txt');
+    await request.delete(`/api/buckets/${from}`);
+    await request.delete(`/api/buckets/${to}`);
+  });
 });

@@ -154,6 +154,30 @@ delete are removed too.
 404 NoSuchKey
 ```
 
+### `PATCH /api/buckets/:bucket/objects/:key`
+
+Moves or renames an object. The body is `{ bucket?, key? }` — an omitted field keeps its current value, so
+`{ "key": "new-name.txt" }` renames in place and `{ "bucket": "docs" }` moves between buckets with the same
+key. Use `"bucket": "_root"` to move an object into the base.
+
+```bash
+curl -X PATCH localhost:4570/api/buckets/photos/objects/2026/trips/cat.png \
+     -H "Content-Type: application/json" \
+     -d '{"bucket":"docs","key":"archive/cat.png"}'
+```
+
+```
+200 { "key": "archive/cat.png", "size": 182734, "contentType": "image/png", "etag": "…",
+      "lastModified": "…", "metadata": {}, "url": "…" }
+400 Invalid move: source and target are the same
+400 Invalid key / Invalid JSON body
+404 NoSuchKey   (source missing)
+404 NoSuchBucket (destination bucket missing — buckets are never created by a move)
+```
+
+Moving into a bucket that already has an object at that key **overwrites** it. On Drive the object keeps its
+file id (reparented, not copied) and source folders left empty are pruned.
+
 ---
 
 ## Non-API routes

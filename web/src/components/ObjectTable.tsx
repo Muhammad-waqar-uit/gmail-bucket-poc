@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Download, ExternalLink, ImageIcon, Loader2, Trash2 } from 'lucide-react';
+import { ArrowRightLeft, Download, ExternalLink, ImageIcon, Loader2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api, formatSize, objectUrl, type ObjectInfo } from '../api';
+import MoveDialog from './MoveDialog';
 
 interface Props {
   bucket: string;
@@ -10,6 +12,7 @@ interface Props {
 
 export default function ObjectTable({ bucket, objects }: Props) {
   const queryClient = useQueryClient();
+  const [moving, setMoving] = useState<ObjectInfo | null>(null);
 
   const deleteObject = useMutation({
     mutationFn: (key: string) => api.deleteObject(bucket, key),
@@ -21,7 +24,8 @@ export default function ObjectTable({ bucket, objects }: Props) {
   });
 
   return (
-    <div className="-mx-1 overflow-x-auto">
+    <>
+      <div className="-mx-1 overflow-x-auto">
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr className="text-left text-[11px] uppercase tracking-[0.07em] text-slate-500">
@@ -69,6 +73,15 @@ export default function ObjectTable({ bucket, objects }: Props) {
                 </td>
                 <td className="px-3 py-2">
                   <div className="flex justify-end gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setMoving(object)}
+                      className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-slate-300 transition hover:bg-white/10"
+                      title="Move or rename"
+                      aria-label="Move or rename"
+                    >
+                      <ArrowRightLeft className="size-3.5" />
+                    </button>
                     {object.url && (
                       <a
                         href={object.url}
@@ -110,6 +123,9 @@ export default function ObjectTable({ bucket, objects }: Props) {
           })}
         </tbody>
       </table>
-    </div>
+      </div>
+
+      {moving && <MoveDialog bucket={bucket} object={moving} onClose={() => setMoving(null)} />}
+    </>
   );
 }

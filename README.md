@@ -30,6 +30,8 @@ Playwright. This repo is the app: UI, entry point and end-to-end tests.
   download and delete, toasts.
 - **Open in Drive** — on the Drive backend each object links to its real file (`webViewLink`) and the header
   links the base folder, straight from `status.baseUrl`.
+- **Move and rename** — move an object between buckets or from/to the base, or rename it in place, from the
+  row action or `PATCH`. Works identically on Drive, Gmail and memory.
 - **REST API** — predictable URLs, real status codes, metadata headers.
 - **Tests** — a mock-Drive suite for backend logic plus Playwright API and browser tests.
 
@@ -120,6 +122,9 @@ curl -X PUT  $B/buckets/photos/objects/2026/trips/cat.png \
 curl         "$B/buckets/photos?prefix=2026/"                       # list
 curl         $B/buckets/photos/objects/2026/trips/cat.png -o c.png   # download
 curl -I      $B/buckets/photos/objects/2026/trips/cat.png           # HEAD (etag, size, type)
+curl -X PATCH  $B/buckets/photos/objects/2026/trips/cat.png \
+     -H "Content-Type: application/json" \
+     -d '{"bucket":"docs","key":"archive/cat.png"}'              # move or rename
 curl -X DELETE $B/buckets/photos/objects/2026/trips/cat.png         # delete
 curl -X DELETE "$B/buckets/photos?force=1"                          # delete bucket + contents
 curl         $B/status                                              # backend, base, limits
@@ -174,7 +179,7 @@ Deeper explanation of each module and the data model: **[docs/ARCHITECTURE.md](d
 
 ```bash
 npm run typecheck      # API, React and Playwright TypeScript
-npm run test:drive     # DriveStore against an in-memory fake Drive client (26 checks)
+npm run test:drive     # DriveStore against an in-memory fake Drive client (37 checks)
 npm run test:e2e       # builds, starts a memory-mode server, runs Playwright
 npm test               # all of the above
 ```
@@ -185,7 +190,7 @@ npm test               # all of the above
   pruning, `BucketNotEmpty`, `BucketExists`, `NoSuchKey`/`NoSuchBucket`, and the base protections. It is
   also a check that the pinned library version behaves as this app expects.
 - The library's own suite (`npm run test:drive` inside
-  [gmail-bucket](https://github.com/Muhammad-waqar-uit/gmail-bucket)) runs the same 26 checks against the
+  [gmail-bucket](https://github.com/Muhammad-waqar-uit/gmail-bucket)) runs the same 37 checks against the
   source tree.
 - **`e2e/api.spec.ts`** asserts the REST contract: status payload, full object lifecycle, base uploads,
   status codes (400/404/409), and SPA fallback.
