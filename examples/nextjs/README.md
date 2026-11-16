@@ -11,12 +11,15 @@ README.md                               ← this file
 
 ## 1. Install the library
 
+The 2.x line is not on npm yet (the registry still has **1.0.0**, which is the old Gmail-only API with
+no `createStore` — do not install that one), so pull the tagged release:
+
 ```bash
-npm install gmail-bucket
-# while the library is unpublished, either:
-#   npm install github:Muhammad-waqar-uit/gmail-bucket#v2.2.0
-#   npm install ../../gmail-bucket-poc/node_modules/gmail-bucket   (already built)
+npm install github:Muhammad-waqar-uit/gmail-bucket#v2.2.0
 ```
+
+After `gmail-bucket@2.2.0` is published, this becomes plain `npm install gmail-bucket` and the code in
+this folder needs no change.
 
 ## 2. Copy the two files
 
