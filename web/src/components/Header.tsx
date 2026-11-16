@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { Database, HardDrive, Loader2, RefreshCw } from 'lucide-react';
+import { Database, ExternalLink, HardDrive, Loader2, RefreshCw } from 'lucide-react';
 import type { Status } from '../api';
 
 const MODE_STYLES: Record<Status['mode'], string> = {
@@ -46,15 +46,28 @@ export default function Header({ status, isLoading }: Props) {
 
         <span className="flex-1" />
 
-        {status && (
-          <span
-            className="inline-flex max-w-[28rem] items-center gap-1.5 truncate rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-400"
-            title={status.base}
-          >
-            <HardDrive className="size-3 shrink-0" />
-            <span className="truncate">base: {status.base}</span>
-          </span>
-        )}
+        {status &&
+          (status.baseUrl ? (
+            <a
+              href={status.baseUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="group inline-flex max-w-[28rem] items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-400 transition hover:border-white/20 hover:bg-white/10 hover:text-slate-200"
+              title={`${status.base} — open the base folder`}
+            >
+              <HardDrive className="size-3 shrink-0" />
+              <span className="truncate">base: {status.base}</span>
+              <ExternalLink className="size-3 shrink-0 opacity-60 group-hover:opacity-100" />
+            </a>
+          ) : (
+            <span
+              className="inline-flex max-w-[28rem] items-center gap-1.5 truncate rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-400"
+              title={status.base}
+            >
+              <HardDrive className="size-3 shrink-0" />
+              <span className="truncate">base: {status.base}</span>
+            </span>
+          ))}
 
         <button
           type="button"

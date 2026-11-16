@@ -124,3 +124,47 @@ test('rejects a duplicate bucket name with a toast', async ({ page }) => {
   await expect(page.getByText('Could not create bucket')).toBeVisible();
   await expect(page.getByRole('button', { name: bucket, exact: true })).toHaveCount(1);
 });
+
+test('links the base folder and each object to Drive when the backend provides urls', async ({ page }) => {
+  const folderUrl = 'https://drive.google.com/drive/folders/base123';
+  const fileUrl = 'https://drive.google.com/file/d/file123/view';
+
+  // Pretend to be the Drive backend: real server data plus the provider links.
+  await page.route('**/api/status', async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    await route.fulfill({
+      json: {
+        ...body,
+        mode: 'drive',
+        base: 'Drive folder "bucket-base" (base123)',
+        baseUrl: folderUrl,
+      },
+    });
+  });
+
+  await page.route('**/api/buckets/_root*', async (route) => {
+    await route.fulfill({
+      json: {
+        bucket: '_root',
+        objects: [
+          {
+            key: 'welcome.txt',
+            size: 12,
+            contentType: 'text/plain',
+            etag: 'a'.repeat(32),
+            lastModified: new Date().toISOString(),
+            metadata: {},
+            url: fileUrl,
+          },
+        ],
+      },
+    });
+  });
+
+  await page.goto('/');
+
+  await expect(page.getByText('Drive backend')).toBeVisible();
+  await expect(page.getByRole('link', { name: /base: Drive folder/ })).toHaveAttribute('href', folderUrl);
+  await expect(page.getByRole('link', { name: 'Open in Drive' })).toHaveAttribute('href', fileUrl);
+});

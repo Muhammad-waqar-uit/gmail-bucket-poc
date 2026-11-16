@@ -6,6 +6,8 @@ export interface Status {
   mode: StoreMode;
   reason: string;
   base: string;
+  /** Link to the base folder in the provider's UI (Drive only). */
+  baseUrl?: string;
   baseBucket: string;
   rootLabel: string;
   maxUploadBytes: number;
@@ -19,6 +21,8 @@ export interface ObjectInfo {
   etag: string;
   lastModified: string;
   metadata: Record<string, string>;
+  /** Provider link, e.g. a Drive webViewLink (absent on Gmail/memory). */
+  url?: string;
 }
 
 export interface PutResult {

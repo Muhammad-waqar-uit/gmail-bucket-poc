@@ -24,7 +24,7 @@
   "license": "MIT",
   "dependencies": {
     "@tanstack/react-query": "^5.62.0",
-    "gmail-bucket": "github:Muhammad-waqar-uit/gmail-bucket#v2.0.0",
+    "gmail-bucket": "github:Muhammad-waqar-uit/gmail-bucket#v2.1.0",
     "lucide-react": "^0.468.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

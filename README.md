@@ -28,6 +28,8 @@ Playwright. This repo is the app: UI, entry point and end-to-end tests.
 - **Base as a destination** — the reserved bucket `_root` stores objects directly in the base folder.
 - **React UI** — bucket list, drag-and-drop uploads with progress, prefix filtering, image thumbnails,
   download and delete, toasts.
+- **Open in Drive** — on the Drive backend each object links to its real file (`webViewLink`) and the header
+  links the base folder, straight from `status.baseUrl`.
 - **REST API** — predictable URLs, real status codes, metadata headers.
 - **Tests** — a mock-Drive suite for backend logic plus Playwright API and browser tests.
 
@@ -172,7 +174,7 @@ Deeper explanation of each module and the data model: **[docs/ARCHITECTURE.md](d
 
 ```bash
 npm run typecheck      # API, React and Playwright TypeScript
-npm run test:drive     # DriveStore against an in-memory fake Drive client (25 checks)
+npm run test:drive     # DriveStore against an in-memory fake Drive client (26 checks)
 npm run test:e2e       # builds, starts a memory-mode server, runs Playwright
 npm test               # all of the above
 ```
@@ -183,7 +185,7 @@ npm test               # all of the above
   pruning, `BucketNotEmpty`, `BucketExists`, `NoSuchKey`/`NoSuchBucket`, and the base protections. It is
   also a check that the pinned library version behaves as this app expects.
 - The library's own suite (`npm run test:drive` inside
-  [gmail-bucket](https://github.com/Muhammad-waqar-uit/gmail-bucket)) runs the same 25 checks against the
+  [gmail-bucket](https://github.com/Muhammad-waqar-uit/gmail-bucket)) runs the same 26 checks against the
   source tree.
 - **`e2e/api.spec.ts`** asserts the REST contract: status payload, full object lifecycle, base uploads,
   status codes (400/404/409), and SPA fallback.

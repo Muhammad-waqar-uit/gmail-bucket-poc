@@ -25,6 +25,7 @@ Current backend and limits. Used by the UI header.
   "mode": "drive",
   "reason": "Google Drive — buckets are folders inside \"bucket-base\"",
   "base": "Drive folder \"bucket-base\" (1AbCdEf...)",
+  "baseUrl": "https://drive.google.com/drive/folders/1AbCdEf...",
   "baseBucket": "_root",
   "rootLabel": "gmail-bucket",
   "maxUploadBytes": 104857600,
@@ -32,7 +33,8 @@ Current backend and limits. Used by the UI header.
 }
 ```
 
-`mode` is `drive`, `gmail` or `memory`.
+`mode` is `drive`, `gmail` or `memory`. `baseUrl` is present only when the backend can link to the base
+in its own UI (Drive today) — it is the folder the buckets live in.
 
 ---
 
@@ -84,11 +86,16 @@ Lists objects in a bucket. `prefix` filters by key prefix (a folder filter in th
       "contentType": "image/png",
       "etag": "aa46a9fcb0c8e783ebbd6ac026b8fb9e",
       "lastModified": "2026-11-15T23:59:17.190Z",
-      "metadata": { "owner": "poc" }
+      "metadata": { "owner": "poc" },
+      "url": "https://drive.google.com/file/d/1XyZ.../view"
     }
   ]
 }
 ```
+
+`url` is the object's link in the provider's UI — the Drive backend returns the file's `webViewLink`;
+Gmail and memory omit the field. It is also returned by `HEAD`/`GET` object metadata consumers via
+`headObject`/`getObject` in the library API.
 
 `GET /api/buckets/_root?...` lists objects stored directly in the base.
 

@@ -32,6 +32,7 @@ function fakeDrive() {
       modifiedTime: new Date().toISOString(),
       trashed: false,
       content: Buffer.alloc(0),
+      webViewLink: `https://drive.google.com/file/d/${id}/view`,
     });
     return id;
   };
@@ -140,6 +141,10 @@ const got = await store.getObject('photos', '2026/trips/cat.png');
 check('download round-trips bytes', Buffer.compare(got.body, png) === 0);
 check('content type preserved', got.info.contentType === 'image/png');
 check('metadata preserved', got.info.metadata.who === 'poc');
+check(
+  'objects expose the Drive webViewLink as url',
+  got.info.url === `https://drive.google.com/file/d/${[...files.values()].find((f) => f.name === 'cat.png').id}/view`
+);
 check('head reports size', (await store.headObject('photos', '2026/trips/cat.png')).size === png.length);
 check('prefix filter works', (await store.listObjects('photos', { prefix: '2026/trips/' })).length === 1);
 check('other prefix filtered out', (await store.listObjects('photos', { prefix: 'nope/' })).length === 0);

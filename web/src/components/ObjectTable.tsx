@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Download, ImageIcon, Loader2, Trash2 } from 'lucide-react';
+import { Download, ExternalLink, ImageIcon, Loader2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api, formatSize, objectUrl, type ObjectInfo } from '../api';
 
@@ -69,6 +69,18 @@ export default function ObjectTable({ bucket, objects }: Props) {
                 </td>
                 <td className="px-3 py-2">
                   <div className="flex justify-end gap-1">
+                    {object.url && (
+                      <a
+                        href={object.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-slate-300 transition hover:bg-white/10"
+                        title="Open in Drive"
+                        aria-label="Open in Drive"
+                      >
+                        <ExternalLink className="size-3.5" />
+                      </a>
+                    )}
                     <a
                       href={objectUrl(bucket, object.key, true)}
                       className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-slate-300 transition hover:bg-white/10"
