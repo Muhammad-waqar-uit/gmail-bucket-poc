@@ -75,6 +75,39 @@ Same client, Gmail API enabled, then `STORAGE=gmail npm start`. Buckets become l
 > While the OAuth consent screen stays in **Testing**, Google expires refresh tokens after 7 days.
 > Either re-run `npm run auth` or publish the app (unverified is fine for personal use).
 
+### Prove the backend works
+
+```bash
+npm run auth      # once: grants drive + gmail.modify
+npm run smoke     # round-trips one real file through whichever backend is active
+```
+
+`npm run smoke` talks to the store directly — no server, no UI — so it isolates the provider path. It prints
+the backend it resolved, then creates a bucket, uploads a random payload, downloads it back, compares
+**SHA-256**, size, etag and content type, then deletes the object and the bucket (cleanup runs even when a
+step fails). Every step prints `ok`/`fail`, and the exit code is non-zero on failure.
+
+```
+  backend  gmail (Google Gmail: root label gmail-bucket)
+  ok   1. bucket appears in the bucket list
+  ok   2. upload reports the right size (262144 bytes, etag 8f030aaec4aa…)
+  ok   3. object is listed under the bucket (1 object(s))
+  ok   4. metadata matches the upload (etag + size + application/octet-stream)
+  ok   5. downloaded checksum matches (sha256 886f454568da…)
+  ok   6. content type survives the round trip
+  ok   7. deleted object is gone (404 on read, empty listing)
+  ok   8. bucket removed (cleanup)
+```
+
+If `auto` fell back to **memory** (bad or missing credentials) the script refuses to claim success and
+exits 1 — a memory round trip proves nothing about Gmail:
+
+```bash
+STORAGE=gmail npm run smoke     # pin the backend you just authorised
+SMOKE_BYTES=13500000 npm run smoke   # > 12 MB, so Gmail chunking is exercised
+SMOKE_ALLOW_MEMORY=1 STORAGE=memory npm run smoke   # API-only check, no provider
+```
+
 ## Configuration
 
 Copy `.env.example` to `.env` — loaded automatically, real environment variables win.
@@ -182,13 +215,16 @@ npm run typecheck      # API, React and Playwright TypeScript
 npm run test:drive     # DriveStore against an in-memory fake Drive client (37 checks)
 npm run test:e2e       # builds, starts a memory-mode server, runs Playwright
 npm test               # all of the above
+npm run smoke          # real round trip against the active backend (see above)
 ```
 
 - **`scripts/drive-mock-test.mjs`** exercises the `DriveStore` that ships in the installed `gmail-bucket`
   package against a fake Drive API: base folder creation, buckets as folders, nested folder creation,
-  `_root` uploads, MD5 round-trip, metadata, prefix listing, in-place overwrite, delete with empty-folder
-  pruning, `BucketNotEmpty`, `BucketExists`, `NoSuchKey`/`NoSuchBucket`, and the base protections. It is
-  also a check that the pinned library version behaves as this app expects.
+  `_root` uploads, MD5 round-trip, metadata, prefix listing, in-place overwrite, move/rename across
+  buckets, delete with empty-folder pruning, `BucketNotEmpty`, `BucketExists`, `NoSuchKey`/`NoSuchBucket`,
+  and the base protections. It is also a check that the pinned library version behaves as this app expects.
+- **`scripts/smoke.mjs`** is the live counterpart: one real upload/download/checksum/delete cycle against
+  Drive, Gmail or memory, for use right after `npm run auth`.
 - The library's own suite (`npm run test:drive` inside
   [gmail-bucket](https://github.com/Muhammad-waqar-uit/gmail-bucket)) runs the same 37 checks against the
   source tree.
