@@ -6,7 +6,7 @@ model onto Google Drive, Gmail and plain memory.
 > **Where the code lives.** The storage core — layout rules, `ObjectStore`, `DriveStore`, `GmailBucket`,
 > `MemoryStore`, backend selection, the REST server and OAuth — is the
 > [gmail-bucket](https://github.com/Muhammad-waqar-uit/gmail-bucket) v2 package, pinned here at the
-> `v2.0.0` tag. Paths marked `pkg:` refer to that package (`node_modules/gmail-bucket/…`); everything
+> `v2.2.0` tag. Paths marked `pkg:` refer to that package (`node_modules/gmail-bucket/…`); everything
 > else lives in this repo. `src/main.ts` is the only backend-specific code left here: it loads `.env`,
 > calls `createStore()` and hands the result to `serve()` with `staticDir` pointing at `web/dist`.
 

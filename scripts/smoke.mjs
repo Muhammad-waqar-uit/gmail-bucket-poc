@@ -31,27 +31,27 @@ const key = 'probe/payload.bin';
 const sha256 = (buf) => crypto.createHash('sha256').update(buf).digest('hex');
 
 let step = 0;
-function pass(name, detail = '') {
-  step += 1;
-  console.log(`  ${GREEN}ok${RESET}   ${step}. ${name}${detail ? ` ${DIM}${detail}${RESET}` : ''}`);
-}
 
-function fail(name, error) {
-  step += 1;
-  console.log(`  ${RED}fail${RESET} ${step}. ${name}`);
-  throw error;
-}
-
-async function withStep(name, fn) {
+/**
+ * One numbered check. `fn` does the work and throws on failure; `describe` turns
+ * its result into the detail printed after "ok". Both assertions and provider
+ * calls live in the same step, so the log reads like the checklist it is.
+ */
+async function run(name, fn, describe) {
+  const n = ++step;
   try {
-    return await fn();
+    const value = await fn();
+    const detail = describe?.(value);
+    console.log(`  ${GREEN}ok${RESET}   ${n}. ${name}${detail ? ` ${DIM}${detail}${RESET}` : ''}`);
+    return value;
   } catch (error) {
-    fail(name, error);
+    console.log(`  ${RED}fail${RESET} ${n}. ${name}`);
+    throw error;
   }
 }
 
 async function main() {
-  const info = await withStep('active backend answers', () => createStore());
+  const info = await run('active backend answers', () => createStore());
 
   console.log(`\n${BOLD}gmail-bucket smoke test${RESET}`);
   console.log(`  backend  ${info.mode} ${DIM}(${info.reason})${RESET}`);
@@ -71,56 +71,80 @@ async function main() {
 
   const payload = crypto.randomBytes(bytes);
   const payloadHash = sha256(payload);
-
   let created = false;
+
   try {
-    await withStep('create bucket', () => info.store.createBucket(bucket));
-    created = true;
-    const buckets = await withStep('list buckets', () => info.store.listBuckets());
-    if (!buckets.includes(bucket)) fail('bucket appears in the bucket list', new Error(`got ${JSON.stringify(buckets)}`));
-    pass('bucket appears in the bucket list');
-
-    const put = await withStep('upload object', () =>
-      info.store.putObject(bucket, key, payload, {
-        contentType: 'application/octet-stream',
-        metadata: { source: 'smoke' },
-      })
+    await run(
+      'create bucket',
+      async () => {
+        await info.store.createBucket(bucket);
+        created = true;
+        const buckets = await info.store.listBuckets();
+        if (!buckets.includes(bucket)) throw new Error(`missing from ${JSON.stringify(buckets)}`);
+      },
+      () => '(visible in listBuckets)'
     );
-    if (put.size !== payload.length) fail('upload reports the right size', new Error(`size ${put.size} != ${payload.length}`));
-    pass('upload reports the right size', `(${put.size} bytes, etag ${put.etag.slice(0, 12)}…)`);
 
-    const listed = await withStep('list the object', () => info.store.listObjects(bucket));
-    if (!listed.some((o) => o.key === key)) fail('object is listed under the bucket', new Error(`keys: ${listed.map((o) => o.key)}`));
-    pass('object is listed under the bucket', `(${listed.length} object(s))`);
+    const put = await run(
+      'upload object',
+      async () => {
+        const result = await info.store.putObject(bucket, key, payload, {
+          contentType: 'application/octet-stream',
+          metadata: { source: 'smoke' },
+        });
+        if (result.size !== payload.length) throw new Error(`size ${result.size} != ${payload.length}`);
+        return result;
+      },
+      (result) => `(${result.size} bytes, etag ${result.etag.slice(0, 12)}…)`
+    );
 
-    const head = await withStep('read object metadata', () => info.store.headObject(bucket, key));
-    if (head.size !== payload.length) fail('metadata size matches', new Error(`size ${head.size}`));
-    if (head.etag && put.etag && head.etag !== put.etag) {
-      fail('metadata etag matches the upload', new Error(`etag ${head.etag} != ${put.etag}`));
-    }
-    pass('metadata matches the upload', `(etag + size + ${head.contentType})`);
+    await run(
+      'list the object',
+      async () => {
+        const listed = await info.store.listObjects(bucket);
+        if (!listed.some((o) => o.key === key)) throw new Error(`keys: ${listed.map((o) => o.key)}`);
+        return listed;
+      },
+      (listed) => `(${listed.length} object(s))`
+    );
 
-    const got = await withStep('download object', () => info.store.getObject(bucket, key));
-    const gotHash = sha256(got.body);
-    if (got.body.length !== payload.length) fail('downloaded size matches', new Error(`${got.body.length} != ${payload.length}`));
-    if (gotHash !== payloadHash) fail('downloaded checksum matches', new Error(`${gotHash} != ${payloadHash}`));
-    pass('downloaded checksum matches', `(sha256 ${gotHash.slice(0, 12)}…)`);
-    if (got.info.contentType !== 'application/octet-stream') {
-      fail('content type survives the round trip', new Error(`got ${got.info.contentType}`));
-    }
-    pass('content type survives the round trip');
+    await run(
+      'metadata matches the upload',
+      async () => {
+        const head = await info.store.headObject(bucket, key);
+        if (head.size !== payload.length) throw new Error(`size ${head.size} != ${payload.length}`);
+        if (head.etag && put.etag && head.etag !== put.etag) throw new Error(`etag ${head.etag} != ${put.etag}`);
+        return head;
+      },
+      (head) => `(etag + size + ${head.contentType})`
+    );
 
-    await withStep('delete object', () => info.store.deleteObject(bucket, key));
-    let missing = false;
-    try {
-      await info.store.getObject(bucket, key);
-    } catch (error) {
-      missing = /NoSuchKey/.test(String(error?.message ?? error));
-    }
-    if (!missing) fail('deleted object is gone', new Error('the object was still readable after delete'));
-    const afterDelete = await info.store.listObjects(bucket);
-    if (afterDelete.length) fail('bucket is empty after delete', new Error(`still ${afterDelete.length} object(s)`));
-    pass('deleted object is gone', '(404 on read, empty listing)');
+    await run(
+      'downloaded checksum matches',
+      async () => {
+        const got = await info.store.getObject(bucket, key);
+        if (got.body.length !== payload.length) throw new Error(`${got.body.length} != ${payload.length}`);
+        if (sha256(got.body) !== payloadHash) throw new Error('sha256 differs');
+        if (got.info.contentType !== 'application/octet-stream') {
+          throw new Error(`content type ${got.info.contentType}`);
+        }
+        return got;
+      },
+      () => `(sha256 ${payloadHash.slice(0, 12)}…, content type kept)`
+    );
+
+    await run('deleted object is gone', async () => {
+      await info.store.deleteObject(bucket, key);
+      let missing = false;
+      try {
+        await info.store.getObject(bucket, key);
+      } catch (error) {
+        missing = /NoSuchKey/.test(String(error?.message ?? error));
+      }
+      if (!missing) throw new Error('the object was still readable after delete');
+      if ((await info.store.listObjects(bucket)).length) throw new Error('bucket is not empty after delete');
+      return '(404 on read, empty listing)';
+    });
   } finally {
     if (created) {
       try {
@@ -138,9 +162,8 @@ const started = Date.now();
 try {
   await main();
   if (process.exitCode) throw new Error('see the failed steps above');
-  console.log(
-    `\n${GREEN}${BOLD}PASS${RESET} — ${bucket} round-tripped and cleaned up in ${((Date.now() - started) / 1000).toFixed(1)}s\n`
-  );
+  const elapsed = ((Date.now() - started) / 1000).toFixed(1);
+  console.log(`\n${GREEN}${BOLD}PASS${RESET} — ${bucket} round-tripped and cleaned up in ${elapsed}s\n`);
 } catch (error) {
   console.log(`\n${RED}${BOLD}FAIL${RESET} — ${String(error?.message ?? error)}\n`);
   process.exit(1);

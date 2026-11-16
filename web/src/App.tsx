@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, BASE_BUCKET } from './api';
 import Header from './components/Header';
@@ -12,11 +12,7 @@ export default function App() {
   const [selected, setSelected] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
 
-  // Select the base folder once the backend has answered.
-  useEffect(() => {
-    if (selected === null && statusQuery.data) setSelected(statusQuery.data.baseBucket);
-  }, [selected, statusQuery.data]);
-
+  // Nothing selected yet means the base folder, which is also the first entry in the list.
   const bucket = selected ?? baseBucket;
 
   return (

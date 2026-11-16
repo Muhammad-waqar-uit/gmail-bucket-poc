@@ -8,7 +8,8 @@ const baseURL = `http://127.0.0.1:${PORT}`;
  * On a locked-down machine that refuses to run unsigned Chromium builds, set
  * PW_CHANNEL=chrome or PW_CHANNEL=msedge to use an installed browser instead.
  */
-const channel = process.env.PW_CHANNEL as 'chromium' | 'chrome' | 'msedge' | undefined;
+const requested = process.env.PW_CHANNEL;
+const channel = requested === 'chrome' || requested === 'msedge' ? requested : undefined;
 
 /**
  * End-to-end tests run against a real server on :4571 using the in-memory
@@ -24,9 +25,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   timeout: 45_000,
   expect: { timeout: 10_000 },
-  reporter: process.env.CI
-    ? [['list'], ['html', { open: 'never' }]]
-    : [['list'], ['html', { open: 'never' }]],
+  reporter: [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL,
     trace: 'retain-on-failure',

@@ -8,7 +8,7 @@
  * Copy to: lib/object-store.ts
  */
 import { createStore } from 'gmail-bucket';
-import type { ObjectInfo, ObjectStore, StoreInfo } from 'gmail-bucket';
+import type { ObjectInfo, ObjectStore } from 'gmail-bucket';
 
 /** What call sites see — deliberately close to S3's vocabulary. */
 export interface StoredObject {
@@ -54,10 +54,11 @@ function toStored(info: ObjectInfo): StoredObject {
 /**
  * Adapter for the gmail-bucket library (Drive, Gmail or in-process memory — chosen
  * by the library's own `STORAGE=auto|drive|gmail|memory`).
+ *
+ * Takes the store itself, not the library's StoreInfo: the adapter only needs the
+ * object operations, and the factory keeps the provider decision.
  */
-export function gmailBucketStore(info: Pick<StoreInfo, 'store'>): ObjectStorePort {
-  const store: ObjectStore = info.store;
-
+export function gmailBucketStore(store: ObjectStore): ObjectStorePort {
   return {
     async ensureBucket(bucket) {
       try {
@@ -122,7 +123,7 @@ async function createAdapter(): Promise<ObjectStorePort> {
   if ((process.env.STORAGE_DRIVER ?? 'gmail-bucket') === 's3') return s3Store();
 
   // Missing credentials fall back to memory, which is fine for local development.
-  const info = await createStore();
-  console.log(`[object-store] ${info.mode} — ${info.base}`);
-  return gmailBucketStore(info);
+  const { store, mode, base } = await createStore();
+  console.log(`[object-store] ${mode} — ${base}`);
+  return gmailBucketStore(store);
 }

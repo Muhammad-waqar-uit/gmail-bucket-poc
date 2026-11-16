@@ -252,7 +252,8 @@ npm run smoke          # real round trip against the active backend (see above)
   Drive, Gmail or memory, for use right after `npm run auth`.
 - The library's own suite (`npm run test:drive` inside
   [gmail-bucket](https://github.com/Muhammad-waqar-uit/gmail-bucket)) runs the same 37 checks against the
-  source tree.
+  source tree. `scripts/drive-mock-test.mjs` here is a **vendored copy** of that file with only the import
+  changed, so it exercises the installed build; re-copy it whenever the pinned tag changes.
 - **`e2e/api.spec.ts`** asserts the REST contract: status payload, full object lifecycle, base uploads,
   status codes (400/404/409), and SPA fallback.
 - **`e2e/app.spec.ts`** drives the real UI: create a bucket, upload into it, upload into a nested folder,

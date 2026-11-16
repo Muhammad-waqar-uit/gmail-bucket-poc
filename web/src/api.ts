@@ -44,13 +44,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     }
     throw new Error(message);
   }
-  const contentType = res.headers.get('content-type') ?? '';
-  return (contentType.includes('application/json') ? res.json() : res) as Promise<T>;
+  return (await res.json()) as T;
 }
 
-export const bucketPath = (bucket: string) => `/buckets/${encodeURIComponent(bucket)}`;
+// Every JSON endpoint on this API answers with JSON; downloads go through
+// objectUrl()/xhr instead, so request() can stay a single code path.
+const bucketPath = (bucket: string) => `/buckets/${encodeURIComponent(bucket)}`;
 
-export const objectPath = (bucket: string, key: string) =>
+const objectPath = (bucket: string, key: string) =>
   `${bucketPath(bucket)}/objects/${encodeKey(key)}`;
 
 export const objectUrl = (bucket: string, key: string, download = false) =>

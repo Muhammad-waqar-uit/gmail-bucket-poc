@@ -1,4 +1,9 @@
 /**
+ * Vendored from gmail-bucket/test/drive-mock-test.mjs @ v2.2.0. The only local
+ * difference is the import below: it pulls DriveStore from the installed package
+ * instead of ../dist, so this copy checks the *built* dependency. When the pinned
+ * tag changes, re-copy the upstream file rather than editing this one.
+ *
  * Exercises the real DriveStore against an in-memory fake Drive client, so the
  * base-folder / bucket-folder / nested-folder logic is tested without credentials.
  *
