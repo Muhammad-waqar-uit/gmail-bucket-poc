@@ -13,6 +13,10 @@ with a React UI and a REST API.
 
 ![Layout](docs/layout.svg)
 
+**Stack:** [gmail-bucket](https://github.com/Muhammad-waqar-uit/gmail-bucket) v2 (storage core, CLI, REST
+server) · React 19 + TypeScript + Vite · Tailwind CSS v4 · TanStack Query · lucide-react · sonner ·
+Playwright. This repo is the app: UI, entry point and end-to-end tests.
+
 ## What it does
 
 - **Base → bucket → folder → object** layout, the same in every backend.
