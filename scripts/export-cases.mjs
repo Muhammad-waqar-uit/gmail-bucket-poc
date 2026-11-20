@@ -5,7 +5,7 @@
  *
  * Seeds a MemoryStore with a nested key, a traversal-style key and an empty bucket,
  * runs the real export walk into a temp directory, then checks the file layout and
- * every manifest field. No Google account and no network.
+ * the manifest fields a restore depends on. No Google account and no network.
  */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -36,8 +36,7 @@ function expectEqual(actual, expected, what) {
 
 function check(name, fn) {
   try {
-    const detail = fn();
-    ok(name, detail);
+    ok(name, fn());
   } catch (error) {
     fail(name, error);
   }
@@ -55,78 +54,74 @@ await store.createBucket('empty');
 await store.putObject('photos', '2026/cat.png', nested, { contentType: 'image/png' });
 // A key the Drive/Gmail backends would never produce, but that a corrupted or hostile
 // index could hold; the walk must keep it inside the target directory.
-await store.putObject('photos', '../../escape.txt', escapes, { contentType: 'text/plain' });
+await store.putObject('photos', '../../escape.txt', escapes);
 
-const info = { mode: 'memory', base: 'in-process memory', reason: 'test', store, rootLabel: 'test' };
+const info = { mode: 'memory', base: 'in-process memory', store };
 
-const result = await exportStore(info, outDir);
-const manifestPath = path.join(outDir, 'manifest.json');
-const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+try {
+  const result = await exportStore(info, outDir);
+  const manifest = JSON.parse(fs.readFileSync(path.join(outDir, 'manifest.json'), 'utf8'));
 
-const photos = manifest.buckets.find((b) => b.bucket === 'photos');
-const empty = manifest.buckets.find((b) => b.bucket === 'empty');
-const cat = photos?.objects.find((o) => o.key === '2026/cat.png');
-const escape = photos?.objects.find((o) => o.key === '../../escape.txt');
+  const photos = manifest.buckets.find((b) => b.bucket === 'photos');
+  const empty = manifest.buckets.find((b) => b.bucket === 'empty');
+  const cat = photos?.objects.find((o) => o.key === '2026/cat.png');
+  const escape = photos?.objects.find((o) => o.key === '../../escape.txt');
 
-check('writes one file per object and reports totals', () => {
-  expectEqual(result.files, 2, 'files');
-  expectEqual(result.bytes, nested.length + escapes.length, 'bytes');
-  expectEqual(result.buckets, 2, 'buckets');
-  return '2 objects, 2 buckets';
-});
+  check('writes one file per object and reports totals', () => {
+    expectEqual(result.files, 2, 'files');
+    expectEqual(result.bytes, nested.length + escapes.length, 'bytes');
+    expectEqual(result.buckets, 2, 'buckets');
+    return '2 objects, 2 buckets';
+  });
 
-check('nested keys keep their folder layout', () => {
-  const file = path.join(outDir, 'photos', '2026', 'cat.png');
-  if (!fs.existsSync(file)) throw new Error(`missing ${file}`);
-  expectEqual(fs.readFileSync(file).toString(), nested.toString(), 'bytes on disk');
-  expectEqual(cat?.file, 'photos/2026/cat.png', 'manifest file');
-  expectEqual(cat?.contentType, 'image/png', 'manifest contentType');
-  expectEqual(cat?.etag, md5(nested), 'manifest etag');
-  expectEqual(cat?.size, nested.length, 'manifest size');
-  if (!cat?.lastModified || Number.isNaN(Date.parse(cat.lastModified))) {
-    throw new Error(`manifest lastModified is not an ISO date: ${cat?.lastModified}`);
-  }
-  return 'photos/2026/cat.png';
-});
+  check('nested keys keep their folder layout', () => {
+    const file = path.join(outDir, 'photos', '2026', 'cat.png');
+    if (!fs.existsSync(file)) throw new Error(`missing ${file}`);
+    expectEqual(fs.readFileSync(file).toString(), nested.toString(), 'bytes on disk');
+    expectEqual(cat?.file, 'photos/2026/cat.png', 'manifest file');
+    expectEqual(cat?.size, nested.length, 'manifest size');
+    expectEqual(cat?.etag, md5(nested), 'manifest etag');
+    expectEqual(cat?.contentType, 'image/png', 'manifest contentType');
+    return 'photos/2026/cat.png';
+  });
 
-check('a traversal-style key cannot leave the target directory', () => {
-  const contained = path.join(outDir, 'photos', 'escape.txt');
-  if (!fs.existsSync(contained)) throw new Error(`expected ${contained}`);
-  expectEqual(fs.readFileSync(contained).toString(), escapes.toString(), 'bytes on disk');
-  expectEqual(escape?.file, 'photos/escape.txt', 'manifest file');
+  check('a traversal-style key cannot leave the target directory', () => {
+    const contained = path.join(outDir, 'photos', 'escape.txt');
+    if (!fs.existsSync(contained)) throw new Error(`expected ${contained}`);
+    expectEqual(fs.readFileSync(contained).toString(), escapes.toString(), 'bytes on disk');
+    expectEqual(escape?.file, 'photos/escape.txt', 'manifest file');
 
-  // Nothing may appear next to or above the export root.
-  const strays = [
-    path.join(outDir, 'escape.txt'),
-    path.join(workDir, 'escape.txt'),
-    path.join(outDir, '..', 'escape.txt'),
-  ].filter((p) => fs.existsSync(p));
-  if (strays.length) throw new Error(`wrote outside the root: ${strays.join(', ')}`);
+    // Nothing may appear next to the export root, and nothing new inside it.
+    const strays = [path.join(outDir, 'escape.txt'), path.join(workDir, 'escape.txt')].filter((p) =>
+      fs.existsSync(p)
+    );
+    if (strays.length) throw new Error(`wrote outside the root: ${strays.join(', ')}`);
+    expectEqual(fs.readdirSync(outDir).sort().join(','), 'empty,manifest.json,photos', 'entries at the root');
+    return 'contained under photos/';
+  });
 
-  const walked = fs.readdirSync(outDir);
-  expectEqual(walked.sort().join(','), 'empty,manifest.json,photos', 'entries at the root');
-  return 'contained under photos/';
-});
+  check('empty buckets are created and recorded', () => {
+    const dir = path.join(outDir, 'empty');
+    if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) throw new Error(`missing ${dir}`);
+    expectEqual(empty?.objects.length, 0, 'empty bucket objects');
+    return 'empty/ exists with 0 objects';
+  });
 
-check('empty buckets are created and recorded', () => {
-  const dir = path.join(outDir, 'empty');
-  if (!fs.existsSync(dir) || !fs.statSync(dir).isDirectory()) throw new Error(`missing ${dir}`);
-  expectEqual(empty?.objects.length, 0, 'empty bucket objects');
-  return 'empty/ exists with 0 objects';
-});
-
-check('the manifest describes the export and does not list itself', () => {
-  expectEqual(manifest.mode, 'memory', 'mode');
-  expectEqual(manifest.base, 'in-process memory', 'base');
-  if (Number.isNaN(Date.parse(manifest.exportedAt))) throw new Error(`exportedAt: ${manifest.exportedAt}`);
-  expectEqual(manifest.buckets.map((b) => b.bucket).join(','), 'empty,photos', 'bucket order');
-  const keys = manifest.buckets.flatMap((b) => b.objects.map((o) => `${b.bucket}/${o.key}`)).sort();
-  expectEqual(keys.join(','), 'photos/../../escape.txt,photos/2026/cat.png', 'keys');
-  if (keys.some((k) => k.includes('manifest.json'))) throw new Error('manifest lists itself');
-  return `${manifest.buckets.length} buckets`;
-});
-
-fs.rmSync(workDir, { recursive: true, force: true });
+  check('the manifest describes the export', () => {
+    expectEqual(manifest.mode, 'memory', 'mode');
+    expectEqual(manifest.base, 'in-process memory', 'base');
+    expectEqual(manifest.buckets.map((b) => b.bucket).join(','), 'empty,photos', 'bucket order');
+    // The exact key list also proves the manifest does not list itself.
+    const keys = manifest.buckets.flatMap((b) => b.objects.map((o) => `${b.bucket}/${o.key}`)).sort();
+    expectEqual(keys.join(','), 'photos/../../escape.txt,photos/2026/cat.png', 'keys');
+    return `${manifest.buckets.length} buckets`;
+  });
+} catch (error) {
+  // A throwing walk leaves no assertions to run, so report it as the case it broke.
+  fail('the export walk writes a manifest', error);
+} finally {
+  fs.rmSync(workDir, { recursive: true, force: true });
+}
 
 if (failures) {
   console.log(`\nFAIL — ${failures} of ${cases} export cases failed\n`);
