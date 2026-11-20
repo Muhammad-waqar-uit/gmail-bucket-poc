@@ -2,7 +2,8 @@ import { loadEnv } from './env.js';
 loadEnv();
 
 import { fileURLToPath } from 'node:url';
-import { createStore, serve } from 'gmail-bucket';
+import { createStore } from 'gmail-bucket';
+import { serveWithSession } from './session.js';
 
 // The built React app sits next to dist/ and is served by the API process.
 const staticDir = fileURLToPath(new URL('../web/dist', import.meta.url));
@@ -18,8 +19,7 @@ if (!loopback && !token) {
     `\nRefusing to listen on ${host} without GMAIL_BUCKET_TOKEN.\n\n` +
       '  The API can read and write every bucket in the linked Google account, and it accepts\n' +
       '  cross-origin requests from any website. Either keep HOST=127.0.0.1 (the default), or set\n' +
-      '  GMAIL_BUCKET_TOKEN to a long random string and send it as "Authorization: Bearer <token>".\n\n' +
-      '  The bundled UI does not send the token yet, so a non-loopback bind is API-only for now.\n'
+      '  GMAIL_BUCKET_TOKEN to a long random string and sign in with it at the app\'s URL.\n'
   );
   process.exit(1);
 }
@@ -32,7 +32,7 @@ try {
   process.exit(1);
 }
 
-const server = serve(info, { port, host, staticDir });
+const server = serveWithSession(info, { port, host, staticDir, token });
 
 process.on('SIGINT', () => server.close(() => process.exit(0)));
 process.on('SIGTERM', () => server.close(() => process.exit(0)));

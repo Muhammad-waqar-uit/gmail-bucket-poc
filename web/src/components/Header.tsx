@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { Database, ExternalLink, HardDrive, Loader2, RefreshCw } from 'lucide-react';
-import type { Status } from '../api';
+import { Database, ExternalLink, HardDrive, Loader2, LogOut, RefreshCw } from 'lucide-react';
+import { api, type Status } from '../api';
 
 const MODE_STYLES: Record<Status['mode'], string> = {
   drive: 'border-emerald-800/70 bg-emerald-950/60 text-emerald-300',
@@ -17,10 +17,19 @@ const MODE_LABEL: Record<Status['mode'], string> = {
 interface Props {
   status?: Status;
   isLoading: boolean;
+  /** Only meaningful when the API requires a token. */
+  canSignOut?: boolean;
 }
 
-export default function Header({ status, isLoading }: Props) {
+export default function Header({ status, isLoading, canSignOut = false }: Props) {
   const queryClient = useQueryClient();
+
+  async function signOut() {
+    // A failed request still means the cookie is gone on this end; the session query
+    // below decides what the UI shows.
+    await api.logout().catch(() => {});
+    queryClient.clear();
+  }
 
   return (
     <header className="sticky top-0 z-10 border-b border-white/10 bg-[#0d1117]/80 backdrop-blur">
@@ -78,6 +87,18 @@ export default function Header({ status, isLoading }: Props) {
           <RefreshCw className="size-3" />
           Refresh
         </button>
+
+        {canSignOut && (
+          <button
+            type="button"
+            onClick={signOut}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-slate-400 transition hover:border-white/20 hover:bg-white/10 hover:text-slate-200"
+            title="Drop the session cookie"
+          >
+            <LogOut className="size-3" />
+            Sign out
+          </button>
+        )}
       </div>
     </header>
   );

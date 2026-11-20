@@ -30,10 +30,27 @@ export interface PutResult {
   size: number;
 }
 
+export interface SessionInfo {
+  /** The server has a GMAIL_BUCKET_TOKEN, so a sign-in is needed. */
+  required: boolean;
+  authenticated: boolean;
+}
+
+/** Carries the HTTP status so the app can tell an expired session from a real failure. */
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
 const encodeKey = (key: string) => key.split('/').map(encodeURIComponent).join('/');
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`/api${path}`, init);
+  const res = await fetch(`/api${path}`, { credentials: 'same-origin', ...init });
   if (!res.ok) {
     let message = `${res.status} ${res.statusText}`;
     try {
@@ -42,7 +59,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     } catch {
       /* not json */
     }
-    throw new Error(message);
+    throw new ApiError(message, res.status);
   }
   return (await res.json()) as T;
 }
@@ -58,6 +75,20 @@ export const objectUrl = (bucket: string, key: string, download = false) =>
   `/api${objectPath(bucket, key)}${download ? '?download=1' : ''}`;
 
 export const api = {
+  session: () => request<SessionInfo>('/session'),
+
+  /** Trades the token for an HttpOnly cookie; the token itself is never stored client-side. */
+  login: (token: string) =>
+    request<{ ok: true }>('/session', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ token }),
+    }),
+
+  logout: async () => {
+    await request<{ ok: true }>('/session', { method: 'DELETE' });
+  },
+
   status: () => request<Status>('/status'),
 
   buckets: async () => (await request<{ buckets: string[] }>('/buckets')).buckets,
@@ -108,7 +139,7 @@ export const api = {
         } catch {
           /* not json */
         }
-        reject(new Error(message));
+        reject(new ApiError(message, xhr.status));
       };
       xhr.onerror = () => reject(new Error('network error'));
       xhr.send(file);

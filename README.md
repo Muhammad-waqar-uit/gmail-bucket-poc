@@ -135,6 +135,7 @@ Copy `.env.example` to `.env` — loaded automatically, real environment variabl
 | `STORAGE` | `auto` | `auto` (Drive → Gmail → memory), `drive`, `gmail` or `memory` |
 | `PORT` | `4570` | HTTP port for the API and the built UI |
 | `HOST` | `127.0.0.1` | Bind address. Anything other than loopback also needs `GMAIL_BUCKET_TOKEN` — the server refuses to start otherwise |
+| `GMAIL_BUCKET_TOKEN` | — | Required for any non-loopback bind. Sign in at the app URL once; API clients send `Authorization: Bearer <token>` |
 | `DRIVE_ROOT_FOLDER_ID` | — | Use an existing Drive folder as the base |
 | `DRIVE_ROOT_FOLDER_NAME` | `bucket-base` | Base folder name under My Drive |
 | `DRIVE_CREATE_ROOT` | `1` | `0` = fail instead of creating the base folder |
@@ -145,6 +146,21 @@ Copy `.env.example` to `.env` — loaded automatically, real environment variabl
 | `GOOGLE_REFRESH_TOKEN` | — | Headless/hosted mode, skips `token.json` |
 | `GOOGLE_ACCESS_TOKEN` | — | Optional short-lived access token seed |
 | `PW_CHANNEL` | — | Test browser: `chrome` / `msedge` when the bundled Chromium is blocked |
+
+## Signing in
+
+A non-loopback bind needs `GMAIL_BUCKET_TOKEN`. Open the app: the UI asks for the token once, trades it for an
+`HttpOnly`, `SameSite=Strict` session cookie (12 hours, extended while in use) and sends that with every
+request. The token never reaches the bundle or `localStorage`, and download links work because the cookie
+rides along on the same origin.
+
+Sessions live in the server process, so a restart signs everyone out. Scripts keep using the header:
+
+```bash
+curl -H "Authorization: Bearer $GMAIL_BUCKET_TOKEN" http://127.0.0.1:4570/api/status
+```
+
+**Sign out** in the header drops the cookie on both ends.
 
 ## The layout, precisely
 
