@@ -27,6 +27,9 @@ jobs:
       - name: Doctor exit codes and next-step dedupe
         run: npm run test:doctor
 
+      - name: Export layout and manifest
+        run: npm run test:export
+
       - name: DriveStore mock suite
         run: npm run test:drive
 
