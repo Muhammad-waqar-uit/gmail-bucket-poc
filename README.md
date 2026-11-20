@@ -123,7 +123,7 @@ Copy `.env.example` to `.env` — loaded automatically, real environment variabl
 | --- | --- | --- |
 | `STORAGE` | `auto` | `auto` (Drive → Gmail → memory), `drive`, `gmail` or `memory` |
 | `PORT` | `4570` | HTTP port for the API and the built UI |
-| `HOST` | `127.0.0.1` | Bind address (`0.0.0.0` in Docker) |
+| `HOST` | `127.0.0.1` | Bind address. Anything other than loopback also needs `GMAIL_BUCKET_TOKEN` — the server refuses to start otherwise |
 | `DRIVE_ROOT_FOLDER_ID` | — | Use an existing Drive folder as the base |
 | `DRIVE_ROOT_FOLDER_NAME` | `bucket-base` | Base folder name under My Drive |
 | `DRIVE_CREATE_ROOT` | `1` | `0` = fail instead of creating the base folder |
