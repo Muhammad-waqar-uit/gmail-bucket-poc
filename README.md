@@ -115,6 +115,17 @@ commands that fix what it found. It exits non-zero only when the configuration c
 `STORAGE=memory npm run doctor` is a valid check too. Resolving a Drive backend can create the base folder,
 just like starting the app.
 
+### Backup
+
+`npm run export` walks every bucket and writes one file per object plus a `manifest.json` recording each
+key's size, etag and content type. This is the backup path that matters for the Gmail backend, where a
+filter or a cleanup can delete the messages behind an object without warning. Keys cannot escape the
+target directory. The memory backend is refused unless `EXPORT_ALLOW_MEMORY=1`.
+
+```bash
+npm run export -- ./backup
+```
+
 ## Configuration
 
 Copy `.env.example` to `.env` — loaded automatically, real environment variables win.
