@@ -3,12 +3,14 @@ import { loadEnv } from './env.js';
 
 loadEnv();
 
-const { login, credFile, tokenFile } = await import('gmail-bucket');
+const { login, credFile, tokenFile, SCOPES } = await import('gmail-bucket');
 
 async function main() {
   console.log(`credentials: ${credFile()}`);
   console.log(`token:       ${tokenFile()}`);
-  console.log('scopes:      gmail.modify + drive (both backends share one token)');
+  // Derived from the library so the line cannot drift from what login() requests.
+  // v2.2.0 shares one token across both backends; 2.3.0 adds --drive/--gmail/--all.
+  console.log(`scopes:      ${SCOPES.join(' + ')}`);
   await login();
 }
 
