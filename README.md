@@ -108,6 +108,13 @@ SMOKE_BYTES=13500000 npm run smoke   # > 12 MB, so Gmail chunking is exercised
 SMOKE_ALLOW_MEMORY=1 STORAGE=memory npm run smoke   # API-only check, no provider
 ```
 
+`npm run doctor` prints what the app would actually use, without uploading anything: where it looks for
+`credentials.json`, whether a token exists, which **scopes** that token really carries and whether it is still
+valid, which backend it resolves and whether it can list buckets — followed by a short `next` list of the
+commands that fix what it found. It exits non-zero only when the configuration cannot work (e.g. `STORAGE=drive` with no usable credentials), so
+`STORAGE=memory npm run doctor` is a valid check too. Resolving a Drive backend can create the base folder,
+just like starting the app.
+
 ## Configuration
 
 Copy `.env.example` to `.env` — loaded automatically, real environment variables win.
