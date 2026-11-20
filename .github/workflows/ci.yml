@@ -24,6 +24,9 @@ jobs:
       - name: Typecheck (API, React, e2e, examples)
         run: npm run typecheck
 
+      - name: Doctor exit codes and next-step dedupe
+        run: npm run test:doctor
+
       - name: DriveStore mock suite
         run: npm run test:drive
 
