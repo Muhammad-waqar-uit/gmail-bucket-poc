@@ -30,6 +30,9 @@ jobs:
       - name: Export layout and manifest
         run: npm run test:export
 
+      - name: Session sign-in, cookie access and 401
+        run: npm run test:session
+
       - name: DriveStore mock suite
         run: npm run test:drive
 
